@@ -1,26 +1,23 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadType = req.params.type || 'general';
-    const uploadPath = path.join(__dirname, '../uploads', uploadType);
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = uuidv4() + path.extname(file.originalname);
-    cb(null, uniqueName);
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: (req, file) => `shah-pharmacy/${req.params.type || 'general'}`,
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 800, height: 800, crop: 'limit', quality: 'auto' }]
   }
 });
 
@@ -37,7 +34,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
@@ -48,13 +45,12 @@ router.post('/:type', upload.single('image'), (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const fileUrl = `/uploads/${req.params.type}/${req.file.filename}`;
-    
     res.json({
       success: true,
       filename: req.file.filename,
       originalName: req.file.originalname,
-      url: fileUrl,
+      url: req.file.path, // Cloudinary URL
+      publicId: req.file.filename,
       size: req.file.size
     });
   } catch (error) {
@@ -72,7 +68,8 @@ router.post('/:type/multiple', upload.array('images', 10), (req, res) => {
     const uploadedFiles = req.files.map(file => ({
       filename: file.filename,
       originalName: file.originalname,
-      url: `/uploads/${req.params.type}/${file.filename}`,
+      url: file.path, // Cloudinary URL
+      publicId: file.filename,
       size: file.size
     }));
 
@@ -86,14 +83,15 @@ router.post('/:type/multiple', upload.array('images', 10), (req, res) => {
   }
 });
 
-// Delete uploaded file
-router.delete('/:type/:filename', (req, res) => {
+// Delete uploaded file from Cloudinary
+router.delete('/:type/:publicId', async (req, res) => {
   try {
-    const { type, filename } = req.params;
-    const filePath = path.join(__dirname, '../uploads', type, filename);
+    const { type, publicId } = req.params;
+    const fullPublicId = `shah-pharmacy/${type}/${publicId}`;
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    const result = await cloudinary.uploader.destroy(fullPublicId);
+    
+    if (result.result === 'ok') {
       res.json({ success: true, message: 'File deleted successfully' });
     } else {
       res.status(404).json({ error: 'File not found' });
@@ -103,27 +101,25 @@ router.delete('/:type/:filename', (req, res) => {
   }
 });
 
-// Get uploaded files list
-router.get('/:type', (req, res) => {
+// Get uploaded files list from Cloudinary
+router.get('/:type', async (req, res) => {
   try {
     const { type } = req.params;
-    const uploadPath = path.join(__dirname, '../uploads', type);
+    const folderPath = `shah-pharmacy/${type}`;
 
-    if (!fs.existsSync(uploadPath)) {
-      return res.json({ files: [] });
-    }
+    const result = await cloudinary.search
+      .expression(`folder:${folderPath}`)
+      .sort_by([['created_at', 'desc']])
+      .max_results(100)
+      .execute();
 
-    const files = fs.readdirSync(uploadPath).map(filename => {
-      const filePath = path.join(uploadPath, filename);
-      const stats = fs.statSync(filePath);
-      
-      return {
-        filename,
-        url: `/uploads/${type}/${filename}`,
-        size: stats.size,
-        uploadDate: stats.birthtime
-      };
-    });
+    const files = result.resources.map(resource => ({
+      filename: resource.public_id.split('/').pop(),
+      url: resource.secure_url,
+      publicId: resource.public_id,
+      size: resource.bytes,
+      uploadDate: resource.created_at
+    }));
 
     res.json({ files });
   } catch (error) {
@@ -135,7 +131,7 @@ router.get('/:type', (req, res) => {
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 5MB' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 10MB' });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ error: 'Too many files. Maximum is 10 files' });
