@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('../models/database');
+const Database = require('./database');
 const router = express.Router();
 
 // Get all products with pagination and search
