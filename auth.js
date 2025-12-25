@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('../models/database');
+const Database = require('./database');
 const router = express.Router();
 
 // Send OTP (Mock implementation)
