@@ -70,6 +70,7 @@ class Database {
         )
       `);
 
+      // ✅ tables banne ke baad hi data insert hoga
       this.insertDefaultSettings();
     });
   }
@@ -100,5 +101,3 @@ class Database {
 }
 
 module.exports = new Database();
-
-
