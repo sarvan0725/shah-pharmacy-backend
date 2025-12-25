@@ -59,13 +59,6 @@ class Database {
         FOREIGN KEY (category_id) REFERENCES categories (id)
       )`,
 
-      // Settings (ONLY ONCE ✅)
-      `CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
       // Orders
       `CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +70,6 @@ class Database {
         coins_earned INTEGER DEFAULT 0,
         status TEXT DEFAULT 'pending',
         delivery_address TEXT,
-        delivery_distance REAL,
         payment_method TEXT DEFAULT 'cod',
         notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -104,11 +96,17 @@ class Database {
         file_path TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES orders (id)
+      )`,
+
+      // ✅ SETTINGS (ONLY ONCE)
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
       )`
     ];
 
     tables.forEach(sql => {
-      this.db.run(sql, (err) => {
+      this.db.run(sql, err => {
         if (err) console.error('❌ Table creation error:', err.message);
       });
     });
@@ -123,7 +121,6 @@ class Database {
       ['max_delivery_distance', '25'],
       ['coin_rate', '100'],
       ['shop_name', 'Shah Pharmacy & Mini Mart'],
-      ['shop_address', "Banjariya Road, Khalilabad, Sant Kabir Nagar"],
       ['shop_phone1', '9792997667'],
       ['shop_phone2', '7905190933']
     ];
