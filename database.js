@@ -20,7 +20,8 @@ class Database {
 
   createTables() {
     const tables = [
-      // Users table
+
+      // Users
       `CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         phone TEXT UNIQUE NOT NULL,
@@ -33,7 +34,7 @@ class Database {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
 
-      // Categories table
+      // Categories
       `CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -41,7 +42,7 @@ class Database {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
 
-      // Products table
+      // Products
       `CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -57,14 +58,15 @@ class Database {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES categories (id)
       )`,
-      // Settings table
-        `CREATE TABLE IF NOT EXISTS settings (
-         id INTEGER PRIMARY KEY AUTOINCREMENT,
-         key TEXT UNIQUE NOT NULL,
-         value TEXT
-       )`,
 
-      // Orders table
+      // Settings (ONLY ONCE ✅)
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Orders
       `CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -82,7 +84,7 @@ class Database {
         FOREIGN KEY (user_id) REFERENCES users (id)
       )`,
 
-      // Order items table
+      // Order Items
       `CREATE TABLE IF NOT EXISTS order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER,
@@ -94,7 +96,7 @@ class Database {
         FOREIGN KEY (product_id) REFERENCES products (id)
       )`,
 
-      // Invoices table
+      // Invoices
       `CREATE TABLE IF NOT EXISTS invoices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER,
@@ -102,41 +104,33 @@ class Database {
         file_path TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES orders (id)
-      )`,
-
-      // Settings table
-      `CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
     tables.forEach(sql => {
       this.db.run(sql, (err) => {
-        if (err) console.error('Table creation error:', err.message);
+        if (err) console.error('❌ Table creation error:', err.message);
       });
     });
 
-    // Insert default settings
     this.insertDefaultSettings();
   }
 
   insertDefaultSettings() {
-    const defaultSettings = [
+    const settings = [
       ['free_delivery_radius', '3'],
       ['delivery_charge_per_km', '15'],
       ['max_delivery_distance', '25'],
       ['coin_rate', '100'],
       ['shop_name', 'Shah Pharmacy & Mini Mart'],
-      ['shop_address', 'Banjariya Road, Near Nacal\'s National Academy Junior, Khalilabad - Sant Kabir Nagar'],
+      ['shop_address', "Banjariya Road, Khalilabad, Sant Kabir Nagar"],
       ['shop_phone1', '9792997667'],
       ['shop_phone2', '7905190933']
     ];
 
-    defaultSettings.forEach(([key, value]) => {
+    settings.forEach(([key, value]) => {
       this.db.run(
-        'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+        `INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`,
         [key, value]
       );
     });
@@ -144,15 +138,6 @@ class Database {
 
   getDB() {
     return this.db;
-  }
-
-  close() {
-    if (this.db) {
-      this.db.close((err) => {
-        if (err) console.error('Database close error:', err.message);
-        else console.log('Database connection closed');
-      });
-    }
   }
 }
 
