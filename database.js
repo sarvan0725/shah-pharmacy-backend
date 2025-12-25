@@ -57,6 +57,12 @@ class Database {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES categories (id)
       )`,
+      // Settings table
+        `CREATE TABLE IF NOT EXISTS settings (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         key TEXT UNIQUE NOT NULL,
+         value TEXT
+       )`,
 
       // Orders table
       `CREATE TABLE IF NOT EXISTS orders (
