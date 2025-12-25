@@ -17,11 +17,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 Database.init();
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/upload', require('./routes/upload'));
+app.use('/api/auth', require('./auth'));
+app.use('/api/products', require('./products'));
+app.use('/api/orders', require('./orders'));
+app.use('/api/admin', require('./admin'));
+app.use('/api/upload', require('./upload'));
 
 // Health check
 app.get('/api/health', (req, res) => {
