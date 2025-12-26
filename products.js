@@ -66,7 +66,13 @@ router.post('/', (req, res) => {
 
   console.log('POST BODY 👉', req.body); // DEBUG
 
-  if (!name || !category_id || !price || !stock) {
+  // ✅ FIXED VALIDATION (0 values allowed)
+  if (
+    !name ||
+    category_id === undefined ||
+    price === undefined ||
+    stock === undefined
+  ) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -82,10 +88,10 @@ router.post('/', (req, res) => {
     sql,
     [
       name,
-      category_id,
-      price,
-      discount_price,
-      stock,
+      Number(category_id),
+      Number(price),
+      Number(discount_price),
+      Number(stock),
       image,
       description,
       brand,
@@ -137,10 +143,10 @@ router.put('/:id', (req, res) => {
     sql,
     [
       name,
-      category_id,
-      price,
-      discount_price,
-      stock,
+      Number(category_id),
+      Number(price),
+      Number(discount_price),
+      Number(stock),
       image,
       description,
       brand,
