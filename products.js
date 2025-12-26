@@ -155,21 +155,51 @@ router.post('/', (req, res) => {
 // Update product (Admin only)
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { name, category_id, price, discount_price, stock, image, description, brand, unit } = req.body;
+  const {
+  name,
+  category_id,
+  price,
+  discount_price = price,
+  stock,
+  image = '',
+  description = '',
+  brand = '',
+  unit = ''
+} = req.body;
   const db = Database.getDB();
-
-  db.run(
-    'UPDATE products SET name = ?, category_id = ?, price = ?, discount_price = ?, stock = ?, image = ?, description = ?, brand = ?, unit = ? WHERE id = ?',
-    [name, category_id, price, discount_price, stock, image, description, brand, unit, id],
-    function(err) {
+db.run(
+    `UPDATE products SET 
+      name = ?, 
+      category_id = ?, 
+      price = ?, 
+      discount_price = ?, 
+      stock = ?, 
+      image = ?, 
+      description = ?, 
+      brand = ?, 
+      unit = ?
+     WHERE id = ?`,
+    [
+      name,
+      category_id,
+      price,
+      discount_price,
+      stock,
+      image,
+      description,
+      brand,
+      unit,
+      id
+    ],
+    function (err) {
       if (err) {
         return res.status(500).json({ error: 'Failed to update product' });
       }
-
       res.json({ success: true });
     }
   );
 });
+  
 
 // Delete product (Admin only)
 router.delete('/:id', (req, res) => {
