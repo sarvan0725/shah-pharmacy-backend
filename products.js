@@ -103,16 +103,47 @@ router.get('/:id', (req, res) => {
   );
 });
 
+
 // Add new product (Admin only)
+
 router.post('/', (req, res) => {
-  const { name, category_id, price, discount_price, stock, image, description, brand, unit } = req.body;
+  const {
+    name,
+    category,
+    price,
+    stock,
+    image,
+    description = '',
+    brand = '',
+    unit = ''
+  } = req.body;
+
+  if (!name || !category || !price || !stock || !image) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const category_id = category;
+  const discount_price = price;
   const db = Database.getDB();
 
   db.run(
-    'INSERT INTO products (name, category_id, price, discount_price, stock, image, description, brand, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [name, category_id, price, discount_price, stock, image, description, brand, unit],
-    function(err) {
+    `INSERT INTO products 
+    (name, category_id, price, discount_price, stock, image, description, brand, unit)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      name,
+      category_id,
+      price,
+      discount_price,
+      stock,
+      image,
+      description,
+      brand,
+      unit
+    ],
+    function (err) {
       if (err) {
+        console.error(err);
         return res.status(500).json({ error: 'Failed to add product' });
       }
 
