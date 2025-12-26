@@ -34,6 +34,53 @@ router.get('/', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
+    // Add product (Admin only)
+    router.post('/', (req, res) => {
+     const {
+      name,
+      category_id,
+      price,
+      discount_price,
+      stock,
+      image,
+      description,
+      brand,
+      unit
+  } = req.body;
+
+  if (!name || !category_id || !price || !stock) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const sql = `
+    INSERT INTO products
+    (name, category_id, price, discount_price, stock, image, description, brand, unit)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const params = [
+    name,
+    category_id,
+    price,
+    discount_price || 0,
+    stock,
+    image || null,
+    description || '',
+    brand || '',
+    unit || ''
+  ];
+
+  const db = Database.getDB();
+
+  db.run(sql, params, function (err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to add product' });
+    }
+
+    res.json({ success: true, productId: this.lastID });
+  });
+});
 
     // Get total count
     let countSql = 'SELECT COUNT(*) as total FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1';
