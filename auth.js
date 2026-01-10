@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('../models/database');
+const Database = require('./database');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
