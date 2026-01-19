@@ -19,6 +19,7 @@ Database.init();
 // Routes
 app.use('/api/auth', require('./auth'));
 app.use('/api/products', require('./products'));
+app.use('/api/categories', require('./categories'));
 app.use('/api/orders', require('./orders'));
 app.use('/api/users', require('./users'));
 app.use('/api/admin', require('./admin'));
