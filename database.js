@@ -29,6 +29,10 @@ class Database {
     });
   }
 
+  /* =======================
+     TABLES
+  ======================= */
+
   createTables() {
     this.db.run(`
       CREATE TABLE IF NOT EXISTS users (
@@ -132,6 +136,10 @@ class Database {
     `);
   }
 
+  /* =======================
+     DEFAULT SETTINGS
+  ======================= */
+
   insertDefaultSettings() {
     const settings = [
       ['free_delivery_radius', '3'],
@@ -159,25 +167,44 @@ class Database {
 
     discounts.forEach(d => {
       this.db.run(
-        `INSERT OR IGNORE INTO discounts 
+        `
+        INSERT OR IGNORE INTO discounts
         (title, type, amount, min_order_amount, auto_apply)
-        VALUES (?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?)
+        `,
         d
       );
     });
   }
 
+  /* =======================
+     CATEGORIES (FIXED)
+  ======================= */
+
+  // LEVEL 1
   insertDefaultCategories() {
-    const cats = ['Healthcare', 'Groceries', 'Personal Care', 'Baby Care'];
-    cats.forEach((c, i) => {
+    const categories = [
+      ['Healthcare', 1],
+      ['Groceries', 2],
+      ['Personal Care', 3],
+      ['Baby Care', 4]
+    ];
+
+    categories.forEach(([name, order]) => {
       this.db.run(
-        `INSERT OR IGNORE INTO categories (name, parent_id, level, sort_order)
-         VALUES (?, NULL, 1, ?)`,
-        [c, i + 1]
+        `
+        INSERT INTO categories (name, parent_id, level, sort_order)
+        SELECT ?, NULL, 1, ?
+        WHERE NOT EXISTS (
+          SELECT 1 FROM categories WHERE name = ? AND parent_id IS NULL
+        )
+        `,
+        [name, order, name]
       );
     });
   }
 
+  // LEVEL 2
   insertSubCategories() {
     const subs = [
       ['Medicines', 'Healthcare'],
@@ -191,13 +218,24 @@ class Database {
     ];
 
     subs.forEach(([name, parent]) => {
-      this.db.run(`
-        INSERT OR IGNORE INTO categories (name, parent_id, level)
-        SELECT ?, id, 2 FROM categories WHERE name = ?
-      `, [name, parent]);
+      this.db.run(
+        `
+        INSERT INTO categories (name, parent_id, level)
+        SELECT ?, id, 2
+        FROM categories
+        WHERE name = ?
+          AND parent_id IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM categories c2
+            WHERE c2.name = ?
+          )
+        `,
+        [name, parent, name]
+      );
     });
   }
 
+  // LEVEL 3
   insertSubSubCategories() {
     const subs = [
       ['Pain Relief', 'Medicines'],
@@ -209,10 +247,19 @@ class Database {
     ];
 
     subs.forEach(([name, parent]) => {
-      this.db.run(`
-        INSERT OR IGNORE INTO categories (name, parent_id, level)
-        SELECT ?, id, 3 FROM categories WHERE name = ?
-      `, [name, parent]);
+      this.db.run(
+        `
+        INSERT INTO categories (name, parent_id, level)
+        SELECT ?, id, 3
+        FROM categories
+        WHERE name = ?
+          AND NOT EXISTS (
+            SELECT 1 FROM categories c2
+            WHERE c2.name = ?
+          )
+        `,
+        [name, parent, name]
+      );
     });
   }
 
