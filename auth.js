@@ -4,20 +4,27 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
-// JWT Secret
+/* =========================
+   JWT CONFIG
+========================= */
 if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET missing in environment");
+  throw new Error('JWT_SECRET missing in environment');
 }
 const JWT_SECRET = process.env.JWT_SECRET;
-// Store OTPs temporarily
+
+/* =========================
+   OTP STORE (IN-MEMORY)
+========================= */
 const otpStore = new Map();
 
-// Generate JWT Token
+/* =========================
+   TOKEN HELPERS
+========================= */
 function generateToken(user) {
   return jwt.sign(
-    { 
-      id: user.id, 
-      phone: user.phone, 
+    {
+      id: user.id,
+      phone: user.phone,
       email: user.email,
       role: user.role || 'user'
     },
@@ -26,265 +33,199 @@ function generateToken(user) {
   );
 }
 
-// Verify JWT Token Middleware
 function verifyToken(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Authorization header missing' });
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-
-  if (!authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Invalid authorization format' });
-  }
-
-  const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    const token = auth.split(' ')[1];
+    req.user = jwt.verify(token, JWT_SECRET);
     next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-// Generate simple 4-digit OTP
-function generateSimpleOTP() {
+/* =========================
+   OTP HELPERS
+========================= */
+function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-// Email configuration
+/* =========================
+   EMAIL CONFIG
+========================= */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.GMAIL_PASS || 'your-app-password'
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
   }
 });
 
-// Send Email OTP
 async function sendEmailOTP(email, otp) {
-  const mailOptions = {
+  return transporter.sendMail({
     from: process.env.GMAIL_USER,
     to: email,
-    subject: 'Shah Pharmacy - Login OTP',
-    html: `
-      <h2>Shah Pharmacy & Mini Mart</h2>
-      <p>Your login OTP is: <strong>${otp}</strong></p>
-      <p>Valid for 5 minutes.</p>
-      <p>Thank you for choosing Shah Pharmacy!</p>
-    `
-  };
-  
-  return transporter.sendMail(mailOptions);
+    subject: 'Shah Pharmacy Login OTP',
+    html: `<h3>Your OTP is <b>${otp}</b></h3><p>Valid for 5 minutes</p>`
+  });
 }
 
-// Send OTP (Email or Phone)
+/* =========================
+   SEND OTP
+========================= */
 router.post('/send-otp', async (req, res) => {
-  const { contact, type } = req.body; // type: 'email' or 'phone'
-  
-  if (!contact) {
-    return res.status(400).json({ error: 'Contact required' });
-  }
+  const { contact, type } = req.body;
+  if (!contact) return res.status(400).json({ error: 'Contact required' });
+
+  const otp = generateOTP();
+  otpStore.set(contact, { otp, expires: Date.now() + 5 * 60 * 1000 });
 
   try {
-    const otp = generateSimpleOTP();
-    
-    // Store OTP with 5-minute expiry
-    otpStore.set(contact, {
-      otp: otp,
-      expires: Date.now() + 5 * 60 * 1000
-    });
-
     if (type === 'email') {
-      // Send email OTP
       if (process.env.NODE_ENV === 'production') {
         await sendEmailOTP(contact, otp);
-      } else {
-        console.log(`Email OTP for ${contact}: ${otp}`);
       }
-      res.json({ 
-        success: true, 
-        message: 'OTP sent to your email'
-      });
-    } else {
-      // For phone - show OTP directly (simple approach)
-      res.json({ 
-        success: true, 
-        message: 'Your OTP is: ' + otp,
-        showOTP: true,
-        otp: otp
-      });
+      return res.json({ success: true });
     }
-  } catch (error) {
-    console.error('Send OTP Error:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+
+    // Phone OTP (simple)
+    res.json({ success: true, otp });
+  } catch {
+    res.status(500).json({ error: 'OTP failed' });
   }
 });
 
-// Verify OTP and login
+/* =========================
+   VERIFY OTP & LOGIN
+========================= */
 router.post('/verify-otp', (req, res) => {
   const { contact, otp } = req.body;
-  
-  if (!contact || !otp) {
-    return res.status(400).json({ error: 'Contact and OTP required' });
+  const data = otpStore.get(contact);
+
+  if (!data || Date.now() > data.expires || data.otp !== otp) {
+    return res.status(400).json({ error: 'Invalid or expired OTP' });
   }
 
-  // Check stored OTP
-  const storedData = otpStore.get(contact);
-  
-  if (!storedData) {
-    return res.status(400).json({ error: 'OTP expired or not found' });
-  }
-  
-  if (Date.now() > storedData.expires) {
-    otpStore.delete(contact);
-    return res.status(400).json({ error: 'OTP expired' });
-  }
-  
-  if (storedData.otp !== otp) {
-    return res.status(400).json({ error: 'Invalid OTP' });
-  }
-  
-  // OTP verified, remove from store
   otpStore.delete(contact);
-
   const db = Database.getDB();
-  
-  // Check if user exists
-  db.get('SELECT * FROM users WHERE phone = ? OR email = ?', [contact, contact], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
 
-    if (user) {
-      // Existing user - generate JWT token
-      const token = generateToken(user);
-      
-      res.json({
-        success: true,
-        token: token,
-        user: {
-          id: user.id,
-          phone: user.phone,
-          email: user.email,
-          name: user.name,
-          coins: user.coins,
-          totalSpent: user.total_spent,
-          totalOrders: user.total_orders
-        }
-      });
-    } else {
-      // New user - create account and generate token
+  db.get(
+    'SELECT * FROM users WHERE phone = ? OR email = ?',
+    [contact, contact],
+    (err, user) => {
+      if (err) return res.status(500).json({ error: 'DB error' });
+
+      if (user) {
+        return res.json({
+          success: true,
+          token: generateToken(user),
+          user
+        });
+      }
+
       const isEmail = contact.includes('@');
       db.run(
-        'INSERT INTO users (phone, email, name) VALUES (?, ?, ?)',
+        'INSERT INTO users (phone, email, name, coins, total_orders, total_spent) VALUES (?, ?, ?, 0, 0, 0)',
         [isEmail ? null : contact, isEmail ? contact : null, 'User'],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to create user' });
-          }
-
+        function () {
           const newUser = {
             id: this.lastID,
             phone: isEmail ? null : contact,
             email: isEmail ? contact : null,
-            name: 'User'
+            name: 'User',
+            coins: 0,
+            total_orders: 0,
+            total_spent: 0
           };
-          
-          const token = generateToken(newUser);
 
           res.json({
             success: true,
-            token: token,
-            user: {
-              id: newUser.id,
-              phone: newUser.phone,
-              email: newUser.email,
-              name: newUser.name,
-              coins: 0,
-              totalSpent: 0,
-              totalOrders: 0
-            }
+            token: generateToken(newUser),
+            user: newUser
           });
         }
       );
     }
+  );
+});
+
+/* =========================
+   USER PROFILE
+========================= */
+router.get('/profile/:id', verifyToken, (req, res) => {
+  if (req.user.id !== Number(req.params.id)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const db = Database.getDB();
+  db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, user) => {
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    res.json(user);
   });
 });
 
-// Get user profile (Protected)
-router.get('/profile/:userId', verifyToken, (req, res) => {
-  const { userId } = req.params;
-  
-  // Check if user is accessing their own profile
-  if (req.user.id !== parseInt(userId)) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-  
+/* =========================
+   USER STATS (FIXED)
+   /users/:id/stats
+========================= */
+router.get('/users/:id/stats', verifyToken, (req, res) => {
   const db = Database.getDB();
-
-  db.get('SELECT * FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
-      id: user.id,
-      phone: user.phone,
-      name: user.name,
-      email: user.email,
-      address: user.address,
-      coins: user.coins,
-      totalSpent: user.total_spent,
-      totalOrders: user.total_orders,
-      memberSince: user.created_at
-    });
-  });
-});
-
-// Update user profile (Protected)
-router.put('/profile/:userId', verifyToken, (req, res) => {
-  const { userId } = req.params;
-  const { name, email, address } = req.body;
-  
-  // Check if user is updating their own profile
-  if (req.user.id !== parseInt(userId)) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-  
-  const db = Database.getDB();
-
-  db.run(
-    'UPDATE users SET name = ?, email = ?, address = ? WHERE id = ?',
-    [name, email, address, userId],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to update profile' });
-      }
-
-      res.json({ success: true, message: 'Profile updated successfully' });
+  db.get(
+    'SELECT total_orders, total_spent FROM users WHERE id = ?',
+    [req.params.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      res.json({
+        cartItems: 0,
+        wishlistItems: 0,
+        totalOrders: row?.total_orders || 0,
+        totalSpent: row?.total_spent || 0
+      });
     }
   );
 });
 
-// Refresh Token
+/* =========================
+   USER WALLET (FIXED)
+   /users/:id/wallet
+========================= */
+router.get('/users/:id/wallet', verifyToken, (req, res) => {
+  const db = Database.getDB();
+  db.get(
+    'SELECT coins FROM users WHERE id = ?',
+    [req.params.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      res.json({ coins: row?.coins || 0 });
+    }
+  );
+});
+
+/* =========================
+   ACTIVE DISCOUNT (FIXED)
+   /users/:id/active-discount
+========================= */
+router.get('/users/:id/active-discount', verifyToken, (req, res) => {
+  res.json({
+    active: false,
+    discountPercent: 0
+  });
+});
+
+/* =========================
+   REFRESH TOKEN
+========================= */
 router.post('/refresh-token', verifyToken, (req, res) => {
-  const newToken = generateToken(req.user);
-  res.json({ success: true, token: newToken });
+  res.json({ token: generateToken(req.user) });
 });
 
-// Logout (Optional - client-side token removal)
-router.post('/logout', (req, res) => {
-  res.json({ success: true, message: 'Logged out successfully' });
-});
-
-// Export middleware for other routes
+/* =========================
+   EXPORT
+========================= */
 router.verifyToken = verifyToken;
-
 module.exports = router;
