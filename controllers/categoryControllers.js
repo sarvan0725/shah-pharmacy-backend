@@ -1,35 +1,41 @@
-const db = require('../db'); // same db jo product use karta hai
+const db = require('../database');
 
-exports.getAllCategories = (req, res) => {
+// GET /api/categories
+exports.getCategories = (req, res) => {
   db.all(
-    "SELECT id, name, parent_id FROM categories",
+    'SELECT id, name, parent_id FROM categories',
     [],
     (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
       res.json(rows);
     }
   );
 };
 
+// GET /api/categories/tree
 exports.getCategoryTree = (req, res) => {
   db.all(
-    "SELECT id, name, parent_id FROM categories",
+    'SELECT id, name, parent_id FROM categories',
     [],
     (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
 
       const map = {};
       const tree = [];
 
-      rows.forEach(c => {
-        map[c.id] = { ...c, children: [] };
+      rows.forEach(row => {
+        map[row.id] = { ...row, children: [] };
       });
 
-      rows.forEach(c => {
-        if (c.parent_id === null) {
-          tree.push(map[c.id]);
-        } else if (map[c.parent_id]) {
-          map[c.parent_id].children.push(map[c.id]);
+      rows.forEach(row => {
+        if (row.parent_id === null) {
+          tree.push(map[row.id]);
+        } else if (map[row.parent_id]) {
+          map[row.parent_id].children.push(map[row.id]);
         }
       });
 
