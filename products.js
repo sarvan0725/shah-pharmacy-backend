@@ -29,24 +29,49 @@ router.get('/', (req, res) => {
 
 /* =========================
    CATEGORY TREE (USER SIDE)
-   FIX FOR FRONTEND 404
+   ✅ PRODUCTION READY
 ========================= */
 router.get('/categories/tree', (req, res) => {
-  try {
-    const db = Database.getDB();
+  const db = Database.getDB();
 
-    /*
-      NOTE:
-      Abhi products table hai, categories table future me aa sakta hai.
-      Frontend ko crash hone se bachane ke liye
-      valid API response diya ja raha hai.
-    */
+  const sql = `
+    SELECT id, name, parent_id
+    FROM categories
+    WHERE is_active = 1
+    ORDER BY parent_id ASC, name ASC
+  `;
 
-    res.json([]);
-  } catch (err) {
-    console.error('Category tree error:', err);
-    res.status(500).json({ error: 'Failed to load categories' });
-  }
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Category tree error:', err);
+      return res.status(500).json({ error: 'Failed to load categories' });
+    }
+
+    // Build tree
+    const map = {};
+    const tree = [];
+
+    rows.forEach(cat => {
+      map[cat.id] = {
+        id: cat.id,
+        name: cat.name,
+        parent_id: cat.parent_id,
+        children: []
+      };
+    });
+
+    rows.forEach(cat => {
+      if (cat.parent_id) {
+        if (map[cat.parent_id]) {
+          map[cat.parent_id].children.push(map[cat.id]);
+        }
+      } else {
+        tree.push(map[cat.id]);
+      }
+    });
+
+    res.json(tree);
+  });
 });
 
 /* =========================
