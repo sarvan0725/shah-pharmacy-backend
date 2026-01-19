@@ -1,65 +1,69 @@
 const express = require('express');
 const Database = require('./database');
-const authRouter = require('./auth'); // for verifyToken
 const router = express.Router();
 
-const verifyToken = authRouter.verifyToken;
-
 /* =========================
-   USER STATS
-   GET /api/users/:id/stats
+   GET USER PROFILE
 ========================= */
-router.get('/:id/stats', verifyToken, (req, res) => {
-  const userId = parseInt(req.params.id);
-
-  if (req.user.id !== userId) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
+router.get('/:id', (req, res) => {
   const db = Database.getDB();
+  const userId = req.params.id;
 
-  const sql = `
-    SELECT 
-      total_orders AS totalOrders,
-      total_spent AS totalSpent,
-      coins
-    FROM users
-    WHERE id = ?
-  `;
-
-  db.get(sql, [userId], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
+  db.get(
+    `SELECT 
+      id, name, phone, email, address,
+      coins, total_spent, total_orders, created_at
+     FROM users WHERE id = ?`,
+    [userId],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(user);
     }
-
-    if (!row) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
-      totalOrders: row.totalOrders || 0,
-      totalSpent: row.totalSpent || 0,
-      coins: row.coins || 0
-    });
-  });
+  );
 });
 
 /* =========================
-   USER WALLET
-   GET /api/users/:id/wallet
+   USER STATS (FRONTEND NEED)
 ========================= */
-router.get('/:id/wallet', verifyToken, (req, res) => {
-  const userId = parseInt(req.params.id);
-
-  if (req.user.id !== userId) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
+router.get('/:id/stats', (req, res) => {
   const db = Database.getDB();
+  const userId = req.params.id;
 
   db.get(
-    'SELECT coins FROM users WHERE id = ?',
+    `SELECT 
+      total_orders,
+      total_spent,
+      coins
+     FROM users WHERE id = ?`,
+    [userId],
+    (err, stats) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      res.json({
+        totalOrders: stats?.total_orders || 0,
+        totalSpent: stats?.total_spent || 0,
+        coins: stats?.coins || 0
+      });
+    }
+  );
+});
+
+/* =========================
+   USER WALLET (FRONTEND NEED)
+========================= */
+router.get('/:id/wallet', (req, res) => {
+  const db = Database.getDB();
+  const userId = req.params.id;
+
+  db.get(
+    `SELECT coins FROM users WHERE id = ?`,
     [userId],
     (err, row) => {
       if (err) {
@@ -67,55 +71,61 @@ router.get('/:id/wallet', verifyToken, (req, res) => {
       }
 
       res.json({
-        coins: row ? row.coins : 0
+        coins: row?.coins || 0
       });
     }
   );
 });
 
 /* =========================
-   ACTIVE DISCOUNT (AUTO APPLY)
-   GET /api/users/:id/active-discount
+   ACTIVE DISCOUNT (FRONTEND NEED)
 ========================= */
-router.get('/:id/active-discount', verifyToken, (req, res) => {
-  const userId = parseInt(req.params.id);
-
-  if (req.user.id !== userId) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
+router.get('/:id/active-discount', (req, res) => {
   const db = Database.getDB();
 
-  const sql = `
-    SELECT *
-    FROM discounts
-    WHERE is_active = 1
-      AND auto_apply = 1
-      AND (expires_at IS NULL OR expires_at > datetime('now'))
-    ORDER BY min_order_amount ASC
-    LIMIT 1
-  `;
-
-  db.get(sql, [], (err, discount) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-
-    if (!discount) {
-      return res.json({ discount: null });
-    }
-
-    res.json({
-      discount: {
-        id: discount.id,
-        title: discount.title,
-        type: discount.type,
-        amount: discount.amount,
-        minOrderAmount: discount.min_order_amount
+  db.get(
+    `SELECT 
+      id, title, type, amount, min_order_amount
+     FROM discounts
+     WHERE is_active = 1
+     AND auto_apply = 1
+     ORDER BY amount DESC
+     LIMIT 1`,
+    [],
+    (err, discount) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
       }
-    });
-  });
+
+      if (!discount) {
+        return res.json(null);
+      }
+
+      res.json(discount);
+    }
+  );
+});
+
+/* =========================
+   UPDATE USER PROFILE
+========================= */
+router.put('/:id', (req, res) => {
+  const db = Database.getDB();
+  const userId = req.params.id;
+  const { name, email, address } = req.body;
+
+  db.run(
+    `UPDATE users 
+     SET name = ?, email = ?, address = ?
+     WHERE id = ?`,
+    [name, email, address, userId],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to update user' });
+      }
+      res.json({ success: true });
+    }
+  );
 });
 
 module.exports = router;
