@@ -20,6 +20,7 @@ Database.init();
 app.use('/api/auth', require('./auth'));
 app.use('/api/products', require('./products'));
 app.use('/api/orders', require('./orders'));
+app.use('/api/users', require('./users'));
 app.use('/api/admin', require('./admin'));
 app.use('/api/upload', require('./upload'));
 
