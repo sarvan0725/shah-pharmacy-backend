@@ -1,54 +1,94 @@
 const express = require("express");
+const axios = require("axios");
+
 const router = express.Router();
 
-let otpStore = {}; // Temporary OTP store
+/**
+ * Temporary OTP Store (Memory)
+ * Later DB में डाल देंगे
+ */
+let otpStore = {};
 
-// ===========================
-// SEND OTP API
-// ===========================
-router.post("/send-otp", (req, res) => {
+/**
+ * ✅ SEND OTP API
+ * POST → /api/otp/send-otp
+ */
+router.post("/send-otp", async (req, res) => {
   const { phone } = req.body;
 
   if (!phone) {
     return res.status(400).json({ error: "Phone number required" });
   }
 
-  // Generate OTP (4 digit)
-  const otp = Math.floor(1000 + Math.random() * 9000);
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000);
 
-  // Save OTP in memory
+  // Save OTP in store
   otpStore[phone] = otp;
 
-  console.log("✅ OTP Generated:", otp);
+  console.log("Generated OTP:", otp);
 
-  res.json({
-    message: "OTP Sent Successfully",
-    otp: otp, // अभी testing के लिए दिखा रहे
-  });
+  try {
+    // ✅ Fast2SMS API Call
+    const response = await axios.post(
+      "https://www.fast2sms.com/dev/bulkV2",
+      {
+        route: "otp",
+        variables_values: otp,
+        numbers: phone,
+      },
+      {
+        headers: {
+          authorization: process.env.FAST2SMS_API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("Fast2SMS Response:", response.data);
+
+    return res.json({
+      success: true,
+      message: "OTP sent successfully",
+    });
+  } catch (error) {
+    console.error("OTP Send Failed:", error.response?.data || error.message);
+
+    return res.status(500).json({
+      success: false,
+      error: "OTP sending failed",
+    });
+  }
 });
 
-// ===========================
-// VERIFY OTP API
-// ===========================
+/**
+ * ✅ VERIFY OTP API
+ * POST → /api/otp/verify-otp
+ */
 router.post("/verify-otp", (req, res) => {
   const { phone, otp } = req.body;
 
   if (!phone || !otp) {
-    return res.status(400).json({ error: "Phone and OTP required" });
+    return res.status(400).json({
+      success: false,
+      error: "Phone and OTP required",
+    });
   }
 
-  if (otpStore[phone] == otp) {
+  // Check OTP
+  if (otpStore[phone] && otpStore[phone] == otp) {
+    // OTP Verified → remove from store
     delete otpStore[phone];
 
     return res.json({
       success: true,
-      message: "Login Successful ✅",
+      message: "OTP Verified Successfully ✅",
     });
   }
 
-  res.status(401).json({
+  return res.status(400).json({
     success: false,
-    message: "Invalid OTP ❌",
+    error: "Invalid OTP ❌",
   });
 });
 
