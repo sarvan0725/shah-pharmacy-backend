@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const Database = require('./database.js');
+const otpRoutes = require("./routes/otp");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +25,7 @@ app.use('/api/orders', require('./orders'));
 app.use('/api/users', require('./users'));
 app.use('/api/admin', require('./admin'));
 app.use('/api/upload', require('./upload'));
-
+app.use("/api/otp", otpRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Shah Pharmacy Backend Running' });
