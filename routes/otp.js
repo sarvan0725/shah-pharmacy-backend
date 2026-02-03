@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
-const db = require("../db");
-
+const db = require("../database");
 // ✅ SEND OTP
 router.post("/send-otp", (req, res) => {
   const { phone } = req.body;
