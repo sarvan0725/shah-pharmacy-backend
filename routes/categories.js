@@ -5,39 +5,47 @@ const Category = require("../models/Category");
 /* =========================
    CATEGORY TREE
 ========================= */
-router.get("/tree", async (req, res) => {
-  try {
-    const categories = await Category.find({ is_active: true }).lean();
+router.get('/tree', (req, res) => {
+  const db = Database.getDB();
+
+  if (!db) {
+    return res.status(500).json({ error: 'DB not initialized' });
+  }
+
+  const sql = `
+    SELECT id, name, parent_id
+    FROM categories
+    WHERE is_active = 1
+    ORDER BY parent_id ASC, name ASC
+  `;
+
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Category tree error:', err);
+      return res.status(500).json({ error: 'Category query failed' });
+    }
 
     const map = {};
     const tree = [];
 
-    categories.forEach(cat => {
-      map[cat._id] = {
-        id: cat._id,
-        name: cat.name,
-        parent_id: cat.parent_id,
-        children: []
-      };
+    rows.forEach(c => {
+      map[c.id] = { ...c, children: [] };
     });
 
-    categories.forEach(cat => {
-      if (cat.parent_id) {
-        if (map[cat.parent_id]) {
-          map[cat.parent_id].children.push(map[cat._id]);
-        }
+    rows.forEach(c => {
+      if (c.parent_id && map[c.parent_id]) {
+        map[c.parent_id].children.push(map[c.id]);
       } else {
-        tree.push(map[cat._id]);
+        tree.push(map[c.id]);
       }
     });
 
     res.json(tree);
-  } catch (err) {
-    console.error("Category tree error:", err);
-    res.status(500).json({ error: "Failed to load categories" });
-  }
+  });
 });
+    
 
+  
 /* =========================
    ADD CATEGORY
 ========================= */
