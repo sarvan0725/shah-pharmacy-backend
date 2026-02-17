@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const Database = require('./database.js');
+const connectDB = require('./database.js');
 const otpRoutes = require("./routes/otp");
 
 const app = express();
@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize Database
-Database.init();
+connectDB();
 
 // Routes
 app.use('/api/auth', require('./auth'));
