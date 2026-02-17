@@ -1,10 +1,8 @@
-const express = require("express");
+const express = require('express');
+const Database = require('../database');
 const router = express.Router();
-const Category = require("../models/Category");
 
-/* =========================
-   CATEGORY TREE
-========================= */
+// CATEGORY TREE
 router.get('/tree', (req, res) => {
   const db = Database.getDB();
 
@@ -42,28 +40,6 @@ router.get('/tree', (req, res) => {
 
     res.json(tree);
   });
-});
-    
-
-  
-/* =========================
-   ADD CATEGORY
-========================= */
-router.post("/", async (req, res) => {
-  try {
-    const { name, parent_id = null } = req.body;
-
-    const category = new Category({
-      name,
-      parent_id: parent_id || null
-    });
-
-    await category.save();
-
-    res.json({ success: true, category });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to add category" });
-  }
 });
 
 module.exports = router;
