@@ -1,227 +1,155 @@
 const express = require('express');
-const Database = require('./database');
+const mongoose = require('mongoose');
 const router = express.Router();
+
+/* =========================
+   PRODUCT SCHEMA
+========================= */
+const productSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  category_id: { type: Number, required: true },
+  price: { type: Number, required: true },
+  discount_price: { type: Number, default: 0 },
+  stock: { type: Number, required: true },
+  image: { type: String, default: null },
+  description: { type: String, default: '' },
+  brand: { type: String, default: '' },
+  unit: { type: String, default: 'piece' },
+  is_active: { type: Boolean, default: true }
+}, { timestamps: true });
+
+const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
 
 /* =========================
    GET ALL PRODUCTS
 ========================= */
-router.get('/', (req, res) => {
-  const { page = 1, limit = 20 } = req.query;
-  const offset = (page - 1) * limit;
-  const db = Database.getDB();
+router.get('/', async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
 
-  const sql = `
-    SELECT *
-    FROM products
-    WHERE is_active = 1
-    ORDER BY id DESC
-    LIMIT ? OFFSET ?
-  `;
+    const products = await Product.find({ is_active: true })
+      .sort({ _id: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit));
 
-  db.all(sql, [Number(limit), Number(offset)], (err, products) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
-    }
     res.json(products);
-  });
-});
-
-/* =========================
-   CATEGORY TREE (USER SIDE)
-   ✅ PRODUCTION READY
-========================= */
-router.get('/categories/tree', (req, res) => {
-  const db = Database.getDB();
-
-  const sql = `
-    SELECT id, name, parent_id
-    FROM categories
-    WHERE is_active = 1
-    ORDER BY parent_id ASC, name ASC
-  `;
-
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      console.error('Category tree error:', err);
-      return res.status(500).json({ error: 'Failed to load categories' });
-    }
-
-    // Build tree
-    const map = {};
-    const tree = [];
-
-    rows.forEach(cat => {
-      map[cat.id] = {
-        id: cat.id,
-        name: cat.name,
-        parent_id: cat.parent_id,
-        children: []
-      };
-    });
-
-    rows.forEach(cat => {
-      if (cat.parent_id) {
-        if (map[cat.parent_id]) {
-          map[cat.parent_id].children.push(map[cat.id]);
-        }
-      } else {
-        tree.push(map[cat.id]);
-      }
-    });
-
-    res.json(tree);
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 /* =========================
    GET PRODUCT BY ID
 ========================= */
-router.get('/:id', (req, res) => {
-  const db = Database.getDB();
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
 
-  db.get(
-    'SELECT * FROM products WHERE id = ? AND is_active = 1',
-    [req.params.id],
-    (err, product) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
-      res.json(product);
+    if (!product || !product.is_active) {
+      return res.status(404).json({ error: 'Product not found' });
     }
-  );
+
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 /* =========================
    ADD PRODUCT
 ========================= */
-router.post('/', (req, res) => {
-  const {
-    name,
-    category_id,
-    price,
-    stock,
-    discount_price = 0,
-    image = null,
-    description = '',
-    brand = '',
-    unit = 'piece'
-  } = req.body;
-
-  if (
-    !name ||
-    category_id === undefined ||
-    price === undefined ||
-    stock === undefined
-  ) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  const db = Database.getDB();
-
-  const sql = `
-    INSERT INTO products
-    (name, category_id, price, discount_price, stock, image, description, brand, unit)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  db.run(
-    sql,
-    [
+router.post('/', async (req, res) => {
+  try {
+    const {
       name,
-      Number(category_id),
-      Number(price),
-      Number(discount_price),
-      Number(stock),
+      category_id,
+      price,
+      stock,
+      discount_price = 0,
+      image = null,
+      description = '',
+      brand = '',
+      unit = 'piece'
+    } = req.body;
+
+    if (
+      !name ||
+      category_id === undefined ||
+      price === undefined ||
+      stock === undefined
+    ) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const newProduct = await Product.create({
+      name,
+      category_id: Number(category_id),
+      price: Number(price),
+      discount_price: Number(discount_price),
+      stock: Number(stock),
       image,
       description,
       brand,
       unit
-    ],
-    function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Failed to add product' });
-      }
-      res.json({ success: true, productId: this.lastID });
-    }
-  );
+    });
+
+    res.json({ success: true, productId: newProduct._id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add product' });
+  }
 });
 
 /* =========================
    UPDATE PRODUCT
 ========================= */
-router.put('/:id', (req, res) => {
-  const {
-    name,
-    category_id,
-    price,
-    stock,
-    discount_price = 0,
-    image = null,
-    description = '',
-    brand = '',
-    unit = 'piece'
-  } = req.body;
-
-  const db = Database.getDB();
-
-  const sql = `
-    UPDATE products SET
-      name = ?,
-      category_id = ?,
-      price = ?,
-      discount_price = ?,
-      stock = ?,
-      image = ?,
-      description = ?,
-      brand = ?,
-      unit = ?
-    WHERE id = ?
-  `;
-
-  db.run(
-    sql,
-    [
+router.put('/:id', async (req, res) => {
+  try {
+    const {
       name,
-      Number(category_id),
-      Number(price),
-      Number(discount_price),
-      Number(stock),
+      category_id,
+      price,
+      stock,
+      discount_price = 0,
+      image = null,
+      description = '',
+      brand = '',
+      unit = 'piece'
+    } = req.body;
+
+    await Product.findByIdAndUpdate(req.params.id, {
+      name,
+      category_id: Number(category_id),
+      price: Number(price),
+      discount_price: Number(discount_price),
+      stock: Number(stock),
       image,
       description,
       brand,
-      unit,
-      req.params.id
-    ],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to update product' });
-      }
-      res.json({ success: true });
-    }
-  );
+      unit
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update product' });
+  }
 });
 
 /* =========================
    DELETE PRODUCT (SOFT)
 ========================= */
-router.delete('/:id', (req, res) => {
-  const db = Database.getDB();
+router.delete('/:id', async (req, res) => {
+  try {
+    await Product.findByIdAndUpdate(req.params.id, {
+      is_active: false
+    });
 
-  db.run(
-    'UPDATE products SET is_active = 0 WHERE id = ?',
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to delete product' });
-      }
-      res.json({ success: true });
-    }
-  );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
 });
 
 module.exports = router;
