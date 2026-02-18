@@ -2,6 +2,24 @@ const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
 
+
+// GET all categories (simple list)
+router.get('/', async (req, res) => {
+  try {
+    const categories = await Category.find().lean();
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: 'Category fetch failed' });
+  }
+});
+
+
+
+
+
+
+
+
 // GET category tree
 router.get('/tree', async (req, res) => {
   try {
