@@ -1,24 +1,7 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const Product = require('./models/Product');
 const router = express.Router();
 
-/* =========================
-   PRODUCT SCHEMA
-========================= */
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  category_id: { type: Number, required: true },
-  price: { type: Number, required: true },
-  discount_price: { type: Number, default: 0 },
-  stock: { type: Number, required: true },
-  image: { type: String, default: null },
-  description: { type: String, default: '' },
-  brand: { type: String, default: '' },
-  unit: { type: String, default: 'piece' },
-  is_active: { type: Boolean, default: true }
-}, { timestamps: true });
-
-const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
 
 /* =========================
    GET ALL PRODUCTS
