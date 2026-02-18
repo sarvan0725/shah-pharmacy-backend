@@ -48,4 +48,26 @@ router.get('/tree', async (req, res) => {
   }
 });
 
+// ADD new category
+router.post("/", async (req, res) => {
+  try {
+    const { name, parent_id } = req.body;
+
+    const category = new Category({
+      name,
+      parent_id: parent_id || null,
+    });
+
+    await category.save();
+
+    res.json({ success: true, category });
+  } catch (err) {
+    console.error("Category create error:", err);
+    res.status(500).json({ error: "Category creation failed" });
+  }
+});
+
+
+
+
 module.exports = router;
