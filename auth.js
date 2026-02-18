@@ -55,6 +55,8 @@ function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+
+
 /* =========================
    EMAIL CONFIG
 ========================= */
@@ -72,6 +74,24 @@ async function sendEmailOTP(email, otp) {
     to: email,
     subject: 'Shah Pharmacy Login OTP',
     html: `<h3>Your OTP is <b>${otp}</b></h3><p>Valid for 5 minutes</p>`
+  });
+}
+
+
+
+/* =========================
+   FAST2SMS CONFIG
+========================= */
+async function sendPhoneOTP(phone, otp) {
+  const url = 'https://www.fast2sms.com/dev/bulkV2';
+
+  return axios.get(url, {
+    params: {
+      authorization: process.env.FAST2SMS_API_KEY,
+      route: 'otp',
+      variables_values: otp,
+      numbers: phone
+    }
   });
 }
 
@@ -93,9 +113,12 @@ router.post('/send-otp', async (req, res) => {
       return res.json({ success: true });
     }
 
-    // Phone OTP (simple)
-    res.json({ success: true, otp });
-  } catch {
+    // PHONE OTP VIA FAST2SMS
+    await sendPhoneOTP(contact, otp);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('OTP error:', err.response?.data || err.message);
     res.status(500).json({ error: 'OTP failed' });
   }
 });
