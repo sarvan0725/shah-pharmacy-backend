@@ -29,7 +29,7 @@ app.use('/api/upload', require('./upload'));
 app.use("/api/otp", otpRoutes);
 app.use('/api/analytics', require('./routes/analytics'));
 
-app.use("/api/analytics", analyticsRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Shah Pharmacy Backend Running' });
