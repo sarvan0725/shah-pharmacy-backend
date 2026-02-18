@@ -1,27 +1,43 @@
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/Order");
-const Product = require("../models/Product");
+const Product = require("../Product");
 
-// GET analytics data
-router.get("/", async (req, res) => {
+router.get("/insights", async (req, res) => {
   try {
     const orders = await Order.find();
     const products = await Product.find();
 
-    const totalOrders = orders.length;
+    // total revenue
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-    const totalRevenue = orders.reduce((sum, o) => {
-      return sum + (o.totalAmount || 0);
-    }, 0);
+    // low stock
+    const lowStock = products.filter(p => p.stock < 30).length;
 
-    const lowStock = products.filter(p => p.stock < 10).length;
+    // best selling product
+    const productSales = {};
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        productSales[item.name] = (productSales[item.name] || 0) + item.qty;
+      });
+    });
+
+    let bestProduct = "No data";
+    let max = 0;
+    for (let p in productSales) {
+      if (productSales[p] > max) {
+        max = productSales[p];
+        bestProduct = p;
+      }
+    }
 
     res.json({
-      totalOrders,
+      totalOrders: orders.length,
       totalRevenue,
-      lowStock
+      lowStock,
+      bestProduct
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Analytics error" });
