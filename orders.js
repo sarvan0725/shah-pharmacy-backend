@@ -7,6 +7,8 @@ const router = express.Router();
 ========================= */
 const orderSchema = new mongoose.Schema({
   userId: Number,
+  customerName: String,
+  phone: String,
   orderNumber: String,
   items: [
     {
@@ -182,5 +184,21 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
+
+
+
+// GET ORDERS BY USER PHONE
+router.get("/user/:phone", async (req, res) => {
+  try {
+    const orders = await Order.find({ phone: req.params.phone });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching user orders" });
+  }
+});
+
+
+
+
 
 module.exports = router;
