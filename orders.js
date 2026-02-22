@@ -41,6 +41,8 @@ router.post('/', async (req, res) => {
   try {
     const {
       userId,
+      customerName,
+      phone,
       items,
       totalAmount,
       deliveryCharge,
@@ -57,6 +59,8 @@ router.post('/', async (req, res) => {
     const newOrder = await Order.create({
       userId,
       orderNumber,
+      customerName,
+      phone,
       items,
       totalAmount,
       deliveryCharge,
