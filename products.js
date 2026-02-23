@@ -8,10 +8,17 @@ const router = express.Router();
 ========================= */
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, category } = req.query;
+
     const skip = (page - 1) * limit;
 
-    const products = await Product.find({ is_active: true })
+    let filter = { is_active: true };
+
+    if (category) {
+      filter.category_id = category;   // 🔥 THIS IS IMPORTANT
+    }
+
+    const products = await Product.find(filter)
       .sort({ _id: -1 })
       .skip(Number(skip))
       .limit(Number(limit));
@@ -68,7 +75,7 @@ router.post('/', async (req, res) => {
 
     const newProduct = await Product.create({
       name,
-      category_id: Number(category_id),
+      category_id,
       price: Number(price),
       discount_price: Number(discount_price),
       stock: Number(stock),
@@ -104,7 +111,7 @@ router.put('/:id', async (req, res) => {
 
     await Product.findByIdAndUpdate(req.params.id, {
       name,
-      category_id: Number(category_id),
+      category_id,
       price: Number(price),
       discount_price: Number(discount_price),
       stock: Number(stock),
