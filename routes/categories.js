@@ -14,27 +14,23 @@ router.get('/', async (req, res) => {
 });
 
 
-
-
-
-
-
-
-// GET category tree
 router.get('/tree', async (req, res) => {
   try {
     const categories = await Category.find().lean();
 
     const map = {};
+
+    // Create map of all categories
     categories.forEach(cat => {
       map[cat._id] = { ...cat, children: [] };
     });
 
     const tree = [];
+
     categories.forEach(cat => {
-      if (cat.parent) {
-        if (map[cat.parent]) {
-          map[cat.parent].children.push(map[cat._id]);
+      if (cat.parent_id) {
+        if (map[cat.parent_id]) {
+          map[cat.parent_id].children.push(map[cat._id]);
         }
       } else {
         tree.push(map[cat._id]);
@@ -42,11 +38,17 @@ router.get('/tree', async (req, res) => {
     });
 
     res.json(tree);
+
   } catch (err) {
     console.error('Category tree error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+
+
+
 
 // ADD new category
 router.post("/", async (req, res) => {
