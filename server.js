@@ -28,7 +28,7 @@ app.use('/api/admin', require('./admin'));
 app.use('/api/upload', require('./upload'));
 app.use("/api/otp", otpRoutes);
 app.use('/api/analytics', require('./routes/analytics'));
-
+app.use("/api/ai", require("./routes/ai"));
 
 // Health check
 app.get('/api/health', (req, res) => {
