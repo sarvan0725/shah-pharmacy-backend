@@ -1,3 +1,6 @@
+const express = require("express");
+const router = express.Router();
+
 router.post("/", (req, res) => {
   const { message } = req.body;
 
@@ -6,7 +9,6 @@ router.post("/", (req, res) => {
   }
 
   let reply = "";
-
   const text = message.toLowerCase();
 
   if (text.includes("fever")) {
@@ -27,3 +29,5 @@ router.post("/", (req, res) => {
 
   res.json({ reply });
 });
+
+module.exports = router;
