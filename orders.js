@@ -169,10 +169,25 @@ router.get('/', async (req, res) => {
 
 
 // GET ORDERS BY USER PHONE
-router.get("/user/:phone", async (req, res) => {
+router.get('/user/:phone', async (req, res) => {
   try {
-    const orders = await Order.find({ phone: req.params.phone });
-    res.json(orders);
+    const orders = await Order.find({ phone: req.params.phone })
+      .sort({ createdAt: -1 });
+
+    const updatedOrders = orders.map(order => {
+      const now = new Date();
+      const createdAt = new Date(order.createdAt);
+
+      const diffHours = (now - createdAt) / (1000 * 60 * 60);
+
+      if (order.status === "pending" && diffHours >= 24) {
+        order.status = "done";
+      }
+
+      return order;
+    });
+
+    res.json(updatedOrders);
   } catch (err) {
     res.status(500).json({ error: "Error fetching user orders" });
   }
