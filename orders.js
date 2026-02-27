@@ -86,25 +86,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-/* =========================
-   GET USER ORDERS
-========================= */
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const orders = await Order.find({ userId: Number(userId) })
-      .sort({ createdAt: -1 })
-      .skip(Number(skip))
-      .limit(Number(limit));
-
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ error: 'Database error' });
-  }
-});
 
 /* =========================
    GET ORDER BY ID
