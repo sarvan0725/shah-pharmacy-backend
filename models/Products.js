@@ -15,6 +15,7 @@ const productSchema = new mongoose.Schema({
   image: { type: String, default: null },
   description: { type: String, default: "" },
   brand: { type: String, default: "" },
+  weight: { type: String, default: "" },
   unit: { type: String, default: "piece" },
   is_active: { type: Boolean, default: true }
 
