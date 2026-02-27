@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
       image = null,
       description = '',
       brand = '',
-      weight = ",
+      weight = '',
       unit = 'piece'
     } = req.body;
 
@@ -108,7 +108,7 @@ router.put('/:id', async (req, res) => {
       image = null,
       description = '',
       brand = '',
-      weight = ",
+      weight = '',
       unit = 'piece'
     } = req.body;
 
