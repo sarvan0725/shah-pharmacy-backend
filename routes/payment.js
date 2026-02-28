@@ -12,17 +12,25 @@ const razorpay = new Razorpay({
 // CREATE ORDER
 router.post("/create-order", async (req, res) => {
   try {
-    const { amount } = req.body;
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount: Number(amount), // IMPORTANT
+    console.log("BODY RECEIVED:", req.body);
+
+    const amount = Number(req.body.amount);
+
+    if (!amount) {
+      return res.status(400).json({ error: "Amount missing" });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: amount,
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     });
 
-    res.json(razorpayOrder);
+    res.json(order);
+
   } catch (error) {
-    console.error("Razorpay Error:", error);
+    console.error("RAZORPAY ERROR:", error);
     res.status(500).json({ error: error.message });
   }
 });
