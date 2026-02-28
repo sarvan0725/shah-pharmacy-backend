@@ -20,6 +20,6 @@
     "cloudinary": "^1.41.0",
     "multer-storage-cloudinary": "^4.0.0",
     "mongoose": "^8.0.0",
-    "razorpay": "^2.9.2",
+    "razorpay": "^2.9.2"
   }
 }
