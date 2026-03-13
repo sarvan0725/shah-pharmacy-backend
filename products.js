@@ -8,7 +8,7 @@ const router = express.Router();
 ========================= */
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 50, category } = req.query;
+    const { page = 1, limit = 1000, category } = req.query;
 
     const skip = (page - 1) * limit;
 
